@@ -119,7 +119,7 @@ feature_mapping <- function(label, value) {
 
 # feature dropdown
 feature_dropdown = dccDropdown(
-  id = "feature_dropdown",
+  id = "feature-dropdown",
   value = "total_cases_per_million",
   options = purrr::map2(feature_labels, feature_values, feature_mapping)
   
@@ -251,7 +251,7 @@ app$layout(
 
 app$callback(
   output('map-plot', 'figure'),
-  list(input('feature_dropdown', 'value'),
+  list(input('feature-dropdown', 'value'),
        input('country-selector', 'value')),
   function(xcol, countries) {
     
