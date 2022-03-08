@@ -91,6 +91,7 @@ filter_data <- function(df, date_from, date_to, countries) {
   df
 }
 
+df <- get_data()
 
 # Feature dropdown functions
 feature_labels <- c("Total confirmed cases",
@@ -199,10 +200,6 @@ map_tab <- dbcRow(
 # APP codes
 app <- Dash$new(external_stylesheets = dbcThemes$FLATLY)
 
-df <- get_data()
-
-
-
 app$layout(
   dbcContainer(
     dbcRow(
@@ -264,8 +261,6 @@ app$callback(
                                       ))
     
     map_plot <- plot_geo(filter_df)
-
-    print(xcol)
     
     map_plot <- map_plot %>%
       add_trace(
