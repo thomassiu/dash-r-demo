@@ -17,4 +17,4 @@ RUN if [ -f '/app/init.R' ]; then /usr/bin/R --no-init-file --no-save --quiet --
 #   && R -e "remotes::install_github('facultyai/dash-bootstrap-components@r-release')"
 
 # here app.R needs to match the name of the file which contains your app
-CMD cd /app/src && /usr/bin/R --no-save -f /app/src/app.R
+CMD cd /app && /usr/bin/R --no-save -f /app/app.R

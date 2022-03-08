@@ -1,5 +1,8 @@
 library(dash)
 library(dashHtmlComponents)
+library(ggplot2)
+library(plotly)
+library(purrr)
 
 #' Get COVID-19 data as data frame
 #'
@@ -87,16 +90,63 @@ filter_data <- function(df, date_from, date_to, countries) {
   df
 }
 
-app <- Dash$new(external_stylesheets = dbcThemes$BOOTSTRAP)
+app <- Dash$new(external_stylesheets = dbcThemes$FLATLY)
 
 df <- get_data()
-filter_data <- filter_data(df, date_from = "2022-02-01", countries = c("Canada", "United States", "Germany"))
+filter_df <- filter_data(df, date_from = "2022-02-01", countries = c("Canada", "United States", "Germany"))
+
+# Country selector
+country_selector <- dccDropdown(
+ id = "country-selector",
+  multi = TRUE,
+  options = df$location %>% unique() %>% purrr::map(function(col) list(label = col, value = col)),
+  value=c("Canada", "United States", "United Kingdom", "France", "Singapore"),
+)
+
+map_tab <- dbcRow(
+  list(
+    htmlP(" "),
+    htmlP(
+      "Animated World Map",
+      style = list("font-size" = "25px"),
+    ),
+    htmlP(
+      "The map below depicts the selected COVID-19 indicator for the selected countries. Use the play button to animate the timeline of this indicator over the date range selected by the slider above.",
+    ),
+    htmlB("Indicator:"),
+    htmlP(
+      "Select an indicator to explore on the map and line plot using the dropdown below.",
+    ),
+    htmlBr(),
+    htmlBr(),
+#    feature_dropdown,
+    dccLoading(
+      dccGraph(
+        id = "map-plot",
+        style = list("height" = "70vh")
+      )
+    )
+  )
+)
 
 app$layout(
   dbcContainer(
     dbcRow(
       list(
-        dbcCol(p("sidebar"), width = 2),
+        dbcCol(dbcRow(
+          list(
+            htmlP("sidebar"),
+            dccDropdown(
+              id='col-select',
+              options = msleep %>%
+                colnames() %>%
+                purrr::map(function(col) list(label = col, value = col)), 
+              value='bodywt'),
+            country_selector
+            )
+          ),
+          width = 2
+        ),
         dbcCol(
           list(
             dbcRow(
@@ -113,6 +163,7 @@ app$layout(
                 dbcTabs(
                   list(
                     dbcTab(
+                      map_tab,
                       label = "Global COVID-19 Map",
                       tab_id="map-tab"
                       ),
@@ -135,6 +186,25 @@ app$layout(
     ),
     fluid=TRUE
   )
+)
+
+app$callback(
+  output('map-plot', 'figure'),
+  list(input('col-select', 'value'),
+       input('country-selector', 'value')),
+  function(xcol, countries) {
+    
+    filter_df <- filter_data(df, countries=countries)
+    
+    p <- ggplot(msleep, aes(x = !!sym(xcol),
+                            y = sleep_total,
+                            color = vore,
+                            text = name)) +
+      geom_point() +
+      scale_x_log10() +
+      ggthemes::scale_color_tableau()
+    ggplotly(p)
+  }
 )
 
 app$run_server(host = "0.0.0.0")
