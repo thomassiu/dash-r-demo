@@ -55,6 +55,7 @@ get_data <- function() {
 
   df <- df %>% dplyr::select(all_of(columns))
   df <- dplyr::filter(df, !stringr::str_detect(iso_code, "^OWID"))
+  df <- df %>% replace(is.na(.), 0)
 }
 
 #' Get COVID-19 data as data frame
@@ -90,24 +91,85 @@ filter_data <- function(df, date_from, date_to, countries) {
   df
 }
 
-app <- Dash$new(external_stylesheets = dbcThemes$FLATLY)
 
-df <- get_data()
-filter_df <- filter_data(df, date_from = "2022-02-01", countries = c("Canada", "United States", "Germany"))
+# Feature dropdown functions
+feature_labels <- c("Total confirmed cases",
+                       "Total confirmed cases per million people",
+                    "Daily confirmed cases",
+                    "Daily confirmed cases per million people",
+                    "Total deaths",
+                    "Total deaths per million people",
+                    "Daily deaths",
+                    "Daily deaths per million people"
+                    )
+
+feature_values <- c("total_cases",
+                       "total_cases_per_million",
+                    "new_cases",
+                    "new_cases_per_million",
+                    "total_deaths",
+                    "total_deaths_per_million",
+                    "new_deaths",
+                    "new_deaths_per_million"
+                    )
+
+feature_mapping <- function(label, value) {
+  list(label = label, value = value)
+}
+
+# feature dropdown
+feature_dropdown = dccDropdown(
+  id = "feature_dropdown",
+  value = "total_cases_per_million",
+  options = purrr::map2(feature_labels, feature_values, feature_mapping)
+  
+)
 
 # Country selector
 country_selector <- dccDropdown(
- id = "country-selector",
+  id = "country-selector",
   multi = TRUE,
   options = df$location %>% unique() %>% purrr::map(function(col) list(label = col, value = col)),
   value=c("Canada", "United States", "United Kingdom", "France", "Singapore"),
 )
 
+# Tabs and sidebars
+sidebar <- dbcCol(dbcRow(
+  list(
+    htmlBr(),
+    htmlP(" "),
+    htmlP(" "),
+    htmlH3(
+      "World COVID-19 Dashboard", style = list("font" = "Helvetica", "font-size" = "25px", "text-align" = "center")
+    ),
+    htmlP(" "),
+    htmlP(" "),
+    htmlBr(),
+    htmlBr(),
+    htmlP(
+      "Explore the global situation of COVID-19 using this interactive dashboard. Compare selected countries and indicators across different date ranges to observe the effect of policy, and vaccination rate.",
+      style = list("text-align" = "justify")),    
+    htmlHr(),
+    htmlBr(),
+    htmlBr(),
+    htmlB("Country Filter"),
+    htmlP(
+        "Use this filter to add or remove a country from the analysis",
+      ),
+    htmlBr(),
+    htmlBr(),      
+    country_selector
+    )
+  ),
+  width = 2
+  )
+
+# map tab
 map_tab <- dbcRow(
   list(
     htmlP(" "),
     htmlP(
-      "Animated World Map",
+      "World Map",
       style = list("font-size" = "25px"),
     ),
     htmlP(
@@ -119,34 +181,29 @@ map_tab <- dbcRow(
     ),
     htmlBr(),
     htmlBr(),
-#    feature_dropdown,
+    feature_dropdown,
     dccLoading(
       dccGraph(
         id = "map-plot",
-        style = list("height" = "70vh")
+        style = list("height" = "70vh"),
       )
     )
   )
 )
 
+
+# APP codes
+app <- Dash$new(external_stylesheets = dbcThemes$FLATLY)
+
+df <- get_data()
+
+
+
 app$layout(
   dbcContainer(
     dbcRow(
       list(
-        dbcCol(dbcRow(
-          list(
-            htmlP("sidebar"),
-            dccDropdown(
-              id='col-select',
-              options = msleep %>%
-                colnames() %>%
-                purrr::map(function(col) list(label = col, value = col)), 
-              value='bodywt'),
-            country_selector
-            )
-          ),
-          width = 2
-        ),
+        sidebar,
         dbcCol(
           list(
             dbcRow(
@@ -190,20 +247,32 @@ app$layout(
 
 app$callback(
   output('map-plot', 'figure'),
-  list(input('col-select', 'value'),
+  list(input('feature_dropdown', 'value'),
        input('country-selector', 'value')),
   function(xcol, countries) {
     
-    filter_df <- filter_data(df, countries=countries)
+     max_date <- df$date %>% max()
+     
+     filter_df <- filter_data(df, date_from = max_date, countries=countries)
+     
+    filter_df$hover <- with(filter_df, paste(" Date:", date, '<br>',
+                                      "Location: ", location, '<br>' 
+                                      ))
     
-    p <- ggplot(msleep, aes(x = !!sym(xcol),
-                            y = sleep_total,
-                            color = vore,
-                            text = name)) +
-      geom_point() +
-      scale_x_log10() +
-      ggthemes::scale_color_tableau()
-    ggplotly(p)
+    map_plot <- plot_geo(filter_df)
+
+    print(xcol)
+    
+    map_plot <- map_plot %>%
+      add_trace(
+      z = as.formula(paste0("~`", xcol, "`")), text = ~hover, 
+      locations = ~iso_code,
+      color = as.formula(paste0("~`", xcol, "`")), colors = 'Purples'
+    )
+
+    map_plot <- map_plot %>% colorbar(title = "Count")  %>% 
+    ggplotly(map_plot)
+    
   }
 )
 
