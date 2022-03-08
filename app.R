@@ -161,7 +161,11 @@ sidebar <- dbcCol(dbcRow(
     country_selector
     )
   ),
-  width = 2
+  width = 2,
+  style = list(
+    "border-width" = "0",
+    "backgroundColor" = "#d3e9ff"
+  ),
   )
 
 # map tab
