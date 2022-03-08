@@ -21,7 +21,7 @@ get_data <- function() {
   
   tryCatch(
     {
-      df <- readr::read_csv(url)
+      df <- read_csv(url)
     },
     error = function(e) {
       stop("The link to the data is broken.")
@@ -59,6 +59,8 @@ get_data <- function() {
   df <- df %>% select(all_of(columns))
   df <- filter(df, !str_detect(iso_code, "^OWID"))
   df <- df %>% replace(is.na(.), 0)
+  
+  df
 }
 
 #' Get COVID-19 data as data frame
